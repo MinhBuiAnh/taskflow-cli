@@ -16,13 +16,13 @@ const (
 	TaskCanceled   TaskStatus = "canceled"
 )
 
-type TaskPriority int
+type TaskPriority string
 
 const (
-	PriorityLow    TaskPriority = 1
-	PriorityMedium TaskPriority = 2
-	PriorityHigh   TaskPriority = 3
-	PriorityUrgent TaskPriority = 4
+	PriorityLow    TaskPriority = "low"
+	PriorityMedium TaskPriority = "medium"
+	PriorityHigh   TaskPriority = "high"
+	PriorityUrgent TaskPriority = "urgent"
 )
 
 var (

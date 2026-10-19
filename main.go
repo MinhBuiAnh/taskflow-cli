@@ -11,14 +11,19 @@ import (
 
 	"github.com/MinhBuiAnh/taskflow-cli/internal/cli"
 	"github.com/MinhBuiAnh/taskflow-cli/internal/repository"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	godotenv.Load(".env")
+	
 	ctx := context.Background()
-	dsn := "taskflow.db"
-	if len(os.Args) > 1 {
-		dsn = os.Args[1]
+	dsn := os.Getenv("DSN")
+	if dsn == "" {
+		log.Fatalf("Data source name is not properly set")
 	}
+
+	// Open the database and perform migrations
 	db, err := repository.OpenSQLite(ctx, dsn)
 	if err != nil {
 		log.Fatal(err)
