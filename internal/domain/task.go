@@ -13,7 +13,7 @@ const (
 	TaskInProgress TaskStatus = "in_progress"
 	TaskDone	   TaskStatus = "done"
 	TaskBlocked	   TaskStatus = "blocked"
-	TaskCanceled   TaskStatus = "canceled"
+	TaskCancelled   TaskStatus = "cancelled"
 )
 
 type TaskPriority string
@@ -52,7 +52,7 @@ func (t *Task) Validate() error {
 	}
 
 	switch t.Status {
-	case TaskTodo, TaskInProgress, TaskDone, TaskBlocked, TaskCanceled:
+	case TaskTodo, TaskInProgress, TaskDone, TaskBlocked, TaskCancelled:
 		// Valid status
 	default:
 		return ErrInvalidTaskStatus
