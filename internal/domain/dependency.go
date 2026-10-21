@@ -3,7 +3,7 @@ package domain
 import "time"
 
 type Dependency struct {
-	ID		  int64
-	DependsOn int64
-	CreatedAt time.Time
+	TaskID		int64
+	DependsOnID int64
+	CreatedAt   time.Time
 }
