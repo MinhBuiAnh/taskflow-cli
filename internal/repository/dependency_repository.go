@@ -185,3 +185,40 @@ func (r *DependencyRepository) ListForTask(ctx context.Context, taskID int64) ([
 
 	return out, nil
 }
+
+// Builds an in-memory graph snapshot for a project.
+func (r *DependencyRepository) GraphByProject(ctx context.Context, projectID int64) (*graph.DependencyGraph, error) {
+	g := graph.NewDependencyGraph()
+	rows, err := r.db.QueryContext(ctx, `SELECT id FROM tasks WHERE project_id = ? ORDER BY id`, projectID)
+	if err != nil {
+		return nil, fmt.Errorf("load project tasks: %w", err)
+	}
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan task ID: %w", err)
+		}
+		if err := g.AddTask(id); err != nil {
+			rows.Close()
+			return nil, err
+		}
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("iterate project tasks: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close task rows: %w", err)
+	}
+	dependencies, err := r.ListByProject(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range dependencies {
+		if err := g.AddDependency(d.TaskID, d.DependsOnID); err != nil {
+			return nil, fmt.Errorf("build dependency graph: %w", err)
+		}
+	}
+	return g, nil
+}
