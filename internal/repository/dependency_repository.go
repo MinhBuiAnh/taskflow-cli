@@ -17,17 +17,15 @@ var (
 	ErrDependencyExists       = errors.New("dependency already exists")
 )
 
-type DependencyRepository struct{
-	db *sql.DB
-}
+type DependencyRepository struct{ db *sql.DB }
 
 func NewDependencyRepository(db *sql.DB) *DependencyRepository {
 	return &DependencyRepository{db: db}
 }
 
-// Adds new dependency, validates task existence, same-project membership, and cycle safety in one transaction before persisting the edge.
+// Add validates task existence, same-project membership, and cycle safety in
+// one transaction before persisting the edge.
 func (r *DependencyRepository) Add(ctx context.Context, taskID, dependsOnID int64) error {
-	// Validate dependency ID
 	if taskID <= 0 || dependsOnID <= 0 {
 		return graph.ErrInvalidTaskID
 	}
@@ -41,7 +39,6 @@ func (r *DependencyRepository) Add(ctx context.Context, taskID, dependsOnID int6
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	// Get project ID from both tasks and ensure both are in the same project
 	var taskProject, prerequisiteProject int64
 	if err := tx.QueryRowContext(ctx, `SELECT project_id FROM tasks WHERE id = ?`, taskID).Scan(&taskProject); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -59,7 +56,6 @@ func (r *DependencyRepository) Add(ctx context.Context, taskID, dependsOnID int6
 		return ErrTasksDifferentProjects
 	}
 
-	// Check if dependency exists
 	var exists int
 	if err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM dependencies WHERE task_id = ? AND depends_on_id = ?`, taskID, dependsOnID).Scan(&exists); err != nil {
 		return fmt.Errorf("check existing dependency: %w", err)
@@ -68,8 +64,6 @@ func (r *DependencyRepository) Add(ctx context.Context, taskID, dependsOnID int6
 		return ErrDependencyExists
 	}
 
-	// Get the project's dependencies and build the dependency graph
-	// And add the new dependency into the graph
 	rows, err := tx.QueryContext(ctx, `SELECT task_id, depends_on_id FROM dependencies WHERE project_id = ?`, taskProject)
 	if err != nil {
 		return fmt.Errorf("load project dependencies: %w", err)
@@ -97,7 +91,6 @@ func (r *DependencyRepository) Add(ctx context.Context, taskID, dependsOnID int6
 		return err
 	}
 
-	// Insert new dependency into the database
 	_, err = tx.ExecContext(ctx, `INSERT INTO dependencies(task_id, depends_on_id, project_id, created_at) VALUES (?, ?, ?, ?)`, taskID, dependsOnID, taskProject, time.Now().UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return fmt.Errorf("insert dependency: %w", err)
@@ -105,12 +98,9 @@ func (r *DependencyRepository) Add(ctx context.Context, taskID, dependsOnID int6
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit dependency: %w", err)
 	}
-
 	return nil
 }
 
-
-// Removes the dependency by the task ID and the task ID it depends on
 func (r *DependencyRepository) Remove(ctx context.Context, taskID, dependsOnID int64) error {
 	result, err := r.db.ExecContext(ctx, `DELETE FROM dependencies WHERE task_id = ? AND depends_on_id = ?`, taskID, dependsOnID)
 	if err != nil {
@@ -126,16 +116,12 @@ func (r *DependencyRepository) Remove(ctx context.Context, taskID, dependsOnID i
 	return nil
 }
 
-// Lists all dependencies by project ID
 func (r *DependencyRepository) ListByProject(ctx context.Context, projectID int64) ([]domain.Dependency, error) {
-	// Gets all dependencies from the database
 	rows, err := r.db.QueryContext(ctx, `SELECT task_id, depends_on_id, created_at FROM dependencies WHERE project_id = ? ORDER BY task_id, depends_on_id`, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("list project dependencies: %w", err)
 	}
 	defer rows.Close()
-
-	// Map to a list of Dependencies
 	out := make([]domain.Dependency, 0)
 	for rows.Next() {
 		var d domain.Dependency
@@ -152,20 +138,15 @@ func (r *DependencyRepository) ListByProject(ctx context.Context, projectID int6
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate project dependencies: %w", err)
 	}
-
 	return out, nil
 }
 
-// List all dependencies by task ID
 func (r *DependencyRepository) ListForTask(ctx context.Context, taskID int64) ([]domain.Dependency, error) {
-	// Gets all dependencies from the database
 	rows, err := r.db.QueryContext(ctx, `SELECT task_id, depends_on_id, created_at FROM dependencies WHERE task_id = ? ORDER BY depends_on_id`, taskID)
 	if err != nil {
 		return nil, fmt.Errorf("list task dependencies: %w", err)
 	}
 	defer rows.Close()
-
-	// Map to a list of Dependencies
 	out := make([]domain.Dependency, 0)
 	for rows.Next() {
 		var d domain.Dependency
@@ -182,11 +163,10 @@ func (r *DependencyRepository) ListForTask(ctx context.Context, taskID int64) ([
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate task dependencies: %w", err)
 	}
-
 	return out, nil
 }
 
-// Builds an in-memory graph snapshot for a project.
+// GraphByProject builds an in-memory graph snapshot for a project.
 func (r *DependencyRepository) GraphByProject(ctx context.Context, projectID int64) (*graph.DependencyGraph, error) {
 	g := graph.NewDependencyGraph()
 	rows, err := r.db.QueryContext(ctx, `SELECT id FROM tasks WHERE project_id = ? ORDER BY id`, projectID)

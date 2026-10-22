@@ -58,7 +58,7 @@ func NewPlanner(db *sql.DB) *Planner {
 	}
 }
 
-// Returns todo tasks whose prerequisites are all done, in a project that is active.
+// Ready returns todo tasks whose prerequisites are all done, in a project that is active.
 func (p *Planner) Ready(ctx context.Context, projectID int64) ([]PlannedTask, error) {
 	project, err := p.projects.Get(ctx, projectID)
 	if err != nil {
@@ -81,7 +81,7 @@ func (p *Planner) Ready(ctx context.Context, projectID int64) ([]PlannedTask, er
 	return out, nil
 }
 
-// Returns tasks currently waiting on unfinished prerequisites.
+// Blocked returns tasks currently waiting on unfinished prerequisites.
 func (p *Planner) Blocked(ctx context.Context, projectID int64) ([]PlannedTask, error) {
 	all, err := p.listProjectTasks(ctx, projectID)
 	if err != nil {
@@ -97,7 +97,7 @@ func (p *Planner) Blocked(ctx context.Context, projectID int64) ([]PlannedTask, 
 	return out, nil
 }
 
-// Returns unfinished, non-cancelled tasks whose deadline is before the supplied date.
+// Overdue returns unfinished, non-cancelled tasks whose deadline is before the supplied date.
 // Supplying now makes the method deterministic for tests and callers; zero uses current time.
 func (p *Planner) Overdue(ctx context.Context, projectID int64, now time.Time) ([]PlannedTask, error) {
 	if now.IsZero() {
@@ -117,7 +117,7 @@ func (p *Planner) Overdue(ctx context.Context, projectID int64, now time.Time) (
 	return out, nil
 }
 
-// Returns tasks in dependency-safe execution order, prerequisites first.
+// Plan returns tasks in dependency-safe execution order, prerequisites first.
 // Completed and cancelled tasks remain in the plan so the full dependency chain is visible.
 func (p *Planner) Plan(ctx context.Context, projectID int64) ([]PlannedTask, error) {
 	all, err := p.listProjectTasks(ctx, projectID)
@@ -154,7 +154,6 @@ func (p *Planner) Plan(ctx context.Context, projectID int64) ([]PlannedTask, err
 	return out, nil
 }
 
-// Returns project information and all of its tasks
 func (p *Planner) Report(ctx context.Context, projectID int64, now time.Time) (*ProjectReport, error) {
 	project, err := p.projects.Get(ctx, projectID)
 	if err != nil {
@@ -204,6 +203,9 @@ func (p *Planner) listProjectTasksAt(ctx context.Context, projectID int64, now t
 	if projectID <= 0 {
 		return nil, fmt.Errorf("project ID must be positive")
 	}
+	if _, err := p.projects.Get(ctx, projectID); err != nil {
+		return nil, fmt.Errorf("load project %d: %w", projectID, err)
+	}
 	tasks, err := p.tasks.ListByProject(ctx, projectID)
 	if err != nil {
 		return nil, err
@@ -222,7 +224,7 @@ func (p *Planner) listProjectTasksAt(ctx context.Context, projectID int64, now t
 }
 
 func sortPlanned(items []PlannedTask) {
-	priorityRank := map[domain.TaskPriority]int{domain.PriorityUrgent: 0, domain.PriorityHigh: 1, domain.PriorityMedium: 2, domain.PriorityLow: 3}
+	priorityRank := map[domain.Priority]int{domain.PriorityUrgent: 0, domain.PriorityHigh: 1, domain.PriorityMedium: 2, domain.PriorityLow: 3}
 	sort.Slice(items, func(i, j int) bool {
 		if priorityRank[items[i].Task.Priority] != priorityRank[items[j].Task.Priority] {
 			return priorityRank[items[i].Task.Priority] < priorityRank[items[j].Task.Priority]

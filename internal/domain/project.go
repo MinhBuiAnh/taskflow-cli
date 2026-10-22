@@ -15,26 +15,23 @@ const (
 	ProjectArchived  ProjectStatus = "archived"
 )
 
-var (
-	ErrInvalidProjectName = errors.New("project name cannot be empty")
-	ErrInvalidProjectStatus = errors.New("invalid project status")
-)
+var ErrInvalidProjectName = errors.New("project name cannot be empty")
+var ErrInvalidProjectStatus = errors.New("invalid project status")
 
 type Project struct {
-	ID int64
-	Name string
-	Description string
-	Status ProjectStatus
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	ArchivedAt *time.Time
+	ID          int64         `json:"id"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Status      ProjectStatus `json:"status"`
+	CreatedAt   time.Time     `json:"created_at"`
+	UpdatedAt   time.Time     `json:"updated_at"`
+	ArchivedAt  *time.Time    `json:"archived_at,omitempty"`
 }
 
-func (p *Project) Validate() error {
+func (p Project) Validate() error {
 	if strings.TrimSpace(p.Name) == "" {
 		return ErrInvalidProjectName
 	}
-
 	switch p.Status {
 	case ProjectActive, ProjectCompleted, ProjectClosed, ProjectArchived:
 		return nil

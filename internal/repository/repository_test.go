@@ -11,7 +11,6 @@ import (
 	"github.com/MinhBuiAnh/taskflow-cli/internal/graph"
 )
 
-// Test database initialization
 func testDB(t *testing.T) (*sql.DB, context.Context) {
 	t.Helper()
 	ctx := context.Background()

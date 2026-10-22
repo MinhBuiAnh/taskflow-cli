@@ -62,6 +62,17 @@ func TestTaskTransitionsRespectDependencies(t *testing.T) {
 	if err := svc.Complete(ctx, dependent.ID); !errors.Is(err, ErrTaskBlocked) {
 		t.Fatalf("expected completion to be rejected as blocked, got %v", err)
 	}
+	// Rejected transitions must not mutate the persisted state or completion timestamp.
+	unchanged, err := tasks.Get(ctx, dependent.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if unchanged.Status != domain.TaskTodo || unchanged.CompletedAt != nil {
+		t.Fatalf("rejected transition mutated task: %+v", unchanged)
+	}
+	if err := svc.Start(ctx, 999999); !errors.Is(err, repository.ErrNotFound) {
+		t.Fatalf("expected missing task error, got %v", err)
+	}
 
 	// A task with no prerequisites may be completed directly from todo.
 	if err := svc.Complete(ctx, prerequisite.ID); err != nil {

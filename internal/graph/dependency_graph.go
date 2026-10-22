@@ -12,14 +12,14 @@ var (
 	ErrCycle          = errors.New("dependency would create a cycle")
 )
 
-// Represents a task that depends on another task.
+// Dependency represents a task that depends on another task.
 // TaskID cannot proceed until DependsOnID has completed.
 type Dependency struct {
 	TaskID      int64
 	DependsOnID int64
 }
 
-// Stores edges from a task to its prerequisites.
+// DependencyGraph stores edges from a task to its prerequisites.
 type DependencyGraph struct {
 	prerequisites map[int64]map[int64]struct{}
 }
@@ -28,7 +28,7 @@ func NewDependencyGraph() *DependencyGraph {
 	return &DependencyGraph{prerequisites: make(map[int64]map[int64]struct{})}
 }
 
-// Registers a task even if it currently has no dependencies.
+// AddTask registers a task even if it currently has no dependencies.
 func (g *DependencyGraph) AddTask(taskID int64) error {
 	if taskID <= 0 {
 		return ErrInvalidTaskID
@@ -39,8 +39,8 @@ func (g *DependencyGraph) AddTask(taskID int64) error {
 	return nil
 }
 
-// Adds taskID -> dependsOnID after verifying that it does not introduce a cycle.
-// A duplicate edge is treated as a no-op, no errors returned.
+// AddDependency adds taskID -> dependsOnID after verifying that it does not
+// introduce a cycle. A duplicate edge is treated as a no-op.
 func (g *DependencyGraph) AddDependency(taskID, dependsOnID int64) error {
 	if taskID <= 0 || dependsOnID <= 0 {
 		return ErrInvalidTaskID
@@ -73,7 +73,6 @@ func (g *DependencyGraph) RemoveDependency(taskID, dependsOnID int64) {
 	}
 }
 
-// Uses DFS to determine whether the graph has a cycle
 func (g *DependencyGraph) HasCycle() bool {
 	const (
 		unvisited = 0
@@ -127,7 +126,7 @@ func (g *DependencyGraph) reachable(from, target int64) bool {
 	return false
 }
 
-// Rreturns tasks in execution order: prerequisites first.
+// TopologicalOrder returns tasks in execution order: prerequisites first.
 // It returns ErrCycle if the graph contains a cycle.
 func (g *DependencyGraph) TopologicalOrder() ([]int64, error) {
 	if g.HasCycle() {
@@ -175,7 +174,7 @@ func (g *DependencyGraph) TopologicalOrder() ([]int64, error) {
 	return order, nil
 }
 
-// Returns a stable, sorted snapshot of all edges.
+// Dependencies returns a stable, sorted snapshot of all edges.
 func (g *DependencyGraph) Dependencies() []Dependency {
 	out := make([]Dependency, 0)
 	for taskID, deps := range g.prerequisites {
